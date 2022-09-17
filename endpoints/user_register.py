@@ -34,7 +34,7 @@ def get_user_info():
     if not session_token:   # If no session found then return error
         return jsonify("Session token not found!"), 401
     # If valid token then retrieve user info 
-    user_info = run_query("SELECT * FROM user LEFT JOIN user_session ON user_session.user_id=user.id WHERE user_session.token=?",[session_token])
+    user_info = run_query("SELECT * FROM users LEFT JOIN user_session ON user_session.user_id=user.id WHERE user_session.token=?",[session_token])
     if user_info is not None:
         return jsonify("User not found")
     else:    
@@ -42,12 +42,7 @@ def get_user_info():
         for item in user_info:
             user = {}
             user['userId'] = item[0]
-            user['email'] = item[1]
             user['username'] = item[2]
-            user['firstName'] = item[4]
-            user['lastName'] = item[5]
-            user['createdAt'] = item[6]
-            user['pictureUrl'] = item[7]
             resp.append(user)
         return jsonify(resp)
     
@@ -62,7 +57,7 @@ def user_register():
     first_name = data.get('firstName')
     last_name = data.get('lastName')
     password_input = data.get('password')
-    password = encrypt_password(password_input)
+    user_password = encrypt_password(password_input)
     picture_url = data.get('pictureUrl')
     if not email:
         return jsonify("Email required"), 422
@@ -74,26 +69,18 @@ def user_register():
         return jsonify("Last name required"), 422
     if not password_input:
         return jsonify("Password required"), 422
-    run_query("INSERT INTO user (email, username, password, first_name, last_name, picture_url) VALUES (?,?,?,?,?,?)", [email, username, password, first_name, last_name, picture_url])
-    user_data = run_query("SELECT * FROM user WHERE username=?", [username])
+    run_query("INSERT INTO users (email, username, first_name, last_name, password, picture_url) VALUES (?,?,?,?,?,?)", [email, username, first_name, last_name, user_password, picture_url])
+    user_data = run_query("SELECT * FROM users WHERE username=?", [username])
     session_token = str(uuid.uuid4().hex)
     user_id = user_data[0][0]
-    run_query("INSERT INTO user_session (token,user_id) VALUES (?,?)", [session_token, user_id])
-    if user_data is None:
-        return jsonify("No session found")
-    else:    
-        resp = []
-        for item in user_data:
-            user = {}
-            user['userId'] = item[0]
-            user['email'] = item[1]
-            user['username'] = item[2]
-            user['firstName'] = item[4]
-            user['lastName'] = item[5]
-            user['createdAt'] = item[6]
-            user['pictureUrl'] = item[7]
-            resp.append(user)
-        return jsonify(resp)
+    run_query("INSERT INTO user_session (user_id, token) VALUES (?,?)", [user_id, session_token])
+    resp = []
+    for item in user_data:
+        user = {}
+        user['userId'] = item[0]
+        user['username'] = item[2]
+        resp.append(user)
+    return jsonify(resp)
 
 
 @app.patch('/api/user')
